@@ -95,6 +95,7 @@ test.describe("Paginated Table@paginatedtable", () => {
     );
   });
 
+  //comment
   test('Check that "Television" and "Smartwatch" checkboxes are selected@test2', async ({
     page,
   }) => {

@@ -1,7 +1,6 @@
-//import { WebTablePage, PaginationPage } from '../pages/pages.js';
 const { WebTablePage, PaginationPage } = require("../pages/pages.js");
 const { test, expect } = require("@playwright/test");
-const { describe } = require("node:test");
+
 
 test.beforeEach(async ({ page }) => {
   await page.goto(
@@ -14,14 +13,14 @@ test.afterEach(async ({ page }) => {
 });
 
 test.describe("Web Table@webtable", () => {
-  const expectedTitles = [
+  const expectedBookTitles = [
     {
-      expected: ["BookName", "Author", "Subject", "Price"],
+      expectedTitlesList: ["BookName", "Author", "Subject", "Price"],
     },
   ];
   const authorsList = [
     {
-      expected: ["Amit", "Mukesh", "Animesh", "Mukesh", "Amod", "Amit"],
+      expectedAuthorsList: ["Amit", "Mukesh", "Animesh", "Mukesh", "Amod", "Amit"],
     },
   ];
   const negativeTestData = [
@@ -32,34 +31,30 @@ test.describe("Web Table@webtable", () => {
       expectedBookName: "Master In Python"
     }
   ];
-  expectedTitles.forEach(({ expected }) => {
+  expectedBookTitles.forEach(({ expectedTitlesList }) => {
     test(`Check All Titles of the Table@test1`, async ({ page }) => {
       const webTable = new WebTablePage(
-        page,
-        //TODO Move locators to pages file
-        page.locator('table[name="BookTable"] tr')
+        page
       );
-      const titlesArray = await webTable.parseTitles();
-      await webTable.checkElemListToBeEqual(expectedBookName, titlesArray);
+      const titlesArray = await webTable.ParseTitlesList();
+      await webTable.CheckElementsListToBeEqual(expectedTitlesList, titlesArray);
     });
   });
 
   test("Check the count of the rows@test2", async ({ page }) => {
     const webTable = new WebTablePage(
-      page,
-      page.locator('table[name="BookTable"] tr')
+      page
     );
-    const filteredRows = await webTable.parseRows();
-    await webTable.checkCount(6, filteredRows);
+    const filteredRows = await webTable.ParseRows();
+    await webTable.CheckCount(6, filteredRows);
   });
-  authorsList.forEach(({ expected }) => {
+  authorsList.forEach(({ expectedAuthorsList }) => {
     test("Check all authors@test3", async ({ page }) => {
       const webTable = new WebTablePage(
-        page,
-        page.locator('table[name="BookTable"] tr')
+        page
       );
-      const authorsList = await webTable.parseColumn(1);
-      await webTable.checkElemListToBeEqual(expected, authorsList);
+      const authorsList = await webTable.ParseColumnByName('Author');
+      await webTable.CheckElementsListToBeEqual(expectedAuthorsList, authorsList);
     });
   });
   negativeTestData.forEach(({ expectedBookName }) => {
@@ -67,53 +62,52 @@ test.describe("Web Table@webtable", () => {
       page,
     }) => {
       const webTable = new WebTablePage(
-        page,
-        page.locator('table[name="BookTable"] tr')
+        page
       );
-      const booksList = await webTable.parseColumn(0);
-      await webTable.checkListNotToContainElem(booksList, expectedBookName);
+      const booksList = await webTable.ParseColumnByName('BookName');
+      await webTable.CheckListNotToContainElement(booksList, expectedBookName);
     });
   });
 });
 
 test.describe("Paginated Table@paginatedtable", () => {
-  //only, fail, skip, fixme, slow
-  test("Check that Product 4 is selected@test1", async ({ page }) => {
+  const productList = 
+  [
+    { pageNumber:'1', productName:'Smartwatch'},
+    { pageNumber:'3', productName:'Router'}
+  ]
+  productList.forEach(({ pageNumber, productName }) => {
+  test(`Check that Product ${productName} is selected@test1`, async ({ page }) => {
     let paginatedTable = new PaginationPage(
-      page,
-      page.locator("#productTable")
+      page
     );
-    await paginatedTable.clickOnPageNumber("1");
+    await paginatedTable.ClickOnPageNumber(pageNumber);
     await page.waitForSelector("#productTable tbody tr");
-    const searchedRowIndex = await paginatedTable.findProduct("Test");
-    //TODO Use assertion
-    if (!searchedRowIndex) {
-      throw new Error("Row with product name not found.");
-    }
+    const searchedRowIndex = await paginatedTable.GetProductByName(productName);
+    await paginatedTable.CheckProductToExist(searchedRowIndex);
     await paginatedTable.AssertCheckboxToBeChecked(
-      await paginatedTable.clickOnProductCheckbox(searchedRowIndex)
+      await paginatedTable.ClickOnProductCheckbox(searchedRowIndex)
     );
   });
+});
 
-  //comment
   test('Check that "Television" and "Smartwatch" checkboxes are selected@test2', async ({
     page,
   }) => {
     const paginatedTable = new PaginationPage(
-      page,
-      page.locator("#productTable")
+      page
     );
-    const pagesTotalNumber = await paginatedTable.findPagesTotalNumber();
+    const pagesTotalNumber = await paginatedTable.GetPagesTotalNumber();
     const productsToCheck = ["Television", "Action Camera"];
     const checkedProducts = new Set();
     for (let pageNumber = 1; pageNumber <= pagesTotalNumber; pageNumber++) {
-      await paginatedTable.clickOnPageNumber(pageNumber);
+      await paginatedTable.ClickOnPageNumber(pageNumber);
       await page.waitForSelector("#productTable tbody tr");
       for (const productName of productsToCheck) {
         if (checkedProducts.has(productName)) continue;
-        const searchedRowIndex = await paginatedTable.findProduct(productName);
+        const searchedRowIndex = await paginatedTable.GetProductByName(productName);
         if (searchedRowIndex !== null) {
-          const checkbox = await paginatedTable.clickOnProductCheckbox(
+          const checkbox = await paginatedTable.ClickOnProductCheckbox(
             searchedRowIndex
           );
           await paginatedTable.AssertCheckboxToBeChecked(checkbox);
@@ -124,58 +118,24 @@ test.describe("Paginated Table@paginatedtable", () => {
     }
     expect(checkedProducts.size).toBe(productsToCheck.length);
   });
-
-  /*test('Check that Ids on the 3rd page@test3', async ({ page }) =>
-        {
-            await page.locator('.pagination li a').nth(2).click();
-            //await page.click('.pagination >> text=3');
-            await page.waitForSelector('#productTable tbody tr');
-            const ids = await page.locator('#productTable tbody tr td:first-child').allTextContents();
-            console.log(ids);
-            const expectedIds = ["11", "12", "13", "14", "15"];
-            expect(ids).toEqual(expectedIds);                
-        });*/
 });
 
 test.describe("Check IDs on the each page", () => {
   const positiveTestData = [
-    { number: "1", expected: ["1", "2", "3", "4", "5"] },
-    { number: "2", expected: ["6", "7", "8", "9", "10"] },
-    { number: "3", expected: ["11", "12", "13", "14", "15"] },
-    { number: "4", expected: ["16", "17", "18", "19", "20"] },
+    { pageNumber: "1", expectedIDsList: ["1", "2", "3", "4", "5"] },
+    { pageNumber: "2", expectedIDsList: ["6", "7", "8", "9", "10"] },
+    { pageNumber: "3", expectedIDsList: ["11", "12", "13", "14", "15"] },
+    { pageNumber: "4", expectedIDsList: ["16", "17", "18", "19", "20"] },
   ];
-  /*const negativeTestData = [
-            { number: '1', expected: ['1','2','3','4','5'] },
-            { number: '2', expected: ['6','7','8','9','10'] },
-            { number: '3', expected: ['11','12','13','14','17'] },
-            { number: '4', expected: ['16','17','18','19','20'] },
-        ];*/
-
-  positiveTestData.forEach(({ number, expected }) => {
-    test(`Check IDs on the page: ${number}`, async ({ page }) => {
+  positiveTestData.forEach(({ pageNumber, expectedIDsList }) => {
+    test(`Check IDs on the page: ${pageNumber}`, async ({ page }) => {
       const paginatedTable = new PaginationPage(
-        page,
-        page.locator("#productTable")
+        page
       );
-      const webTable = new WebTablePage(page, page.locator("#productTable"));
-      //const pageNumber = page.locator('#pagination li').getByText(number);
-      await paginatedTable.clickOnPageNumber(number);
+      await paginatedTable.ClickOnPageNumber(pageNumber);
       await page.waitForSelector("#productTable tbody tr");
-      //const ids = await paginatedTable.returnIDs();
-      const ids = await paginatedTable.returnIDs();
-      console.log(ids);
-      await webTable.checkElemListToBeEqual(expected, ids);
+      const ids = await paginatedTable.GetIDs();
+      await paginatedTable.CheckElementsListToBeEqual(expectedIDsList, ids);
     });
   });
-
-  /*negativeTestData.forEach(({number, expected}) => {
-            test(`Check IDs on the page - negative test: ${number}`, async ({ page }) => {
-                const pageNumber = page.locator('#pagination li').getByText(number);
-                await pageNumber.click();
-                await page.waitForSelector('#productTable tbody tr');
-                const ids = await page.locator('#productTable tbody tr td:first-child').allTextContents();
-                //console.log(ids);
-                expect(ids, `Expected column ${expected}`).toEqual(expected); 
-            });
-        });*/
 });

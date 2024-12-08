@@ -1,30 +1,39 @@
 const { test, expect } = require("@playwright/test");
 
+
 exports.WebTablePage = class WebTablePage {
     /**
     * @param {import('@playwright/test').Page} page
     */
-    constructor(page, tableLocator)
+    constructor(page)
     {
         this.page=page;
-        this.webTableLocator = tableLocator;
+        this.webTableLocator = page.locator('table[name="BookTable"]');
+        this.webTableRowsLocator = this.webTableLocator.locator('tr');
         this.webTableTitles = this.webTableLocator.locator('th');
     };
-    async parseTitles()
+    async ParseTitlesList()
     {
         const titlesArray = await this.webTableTitles.allTextContents();
         return titlesArray;
     };
-    async parseRows()
+    async GetColumnNumber(searchedColumn)
     {
-        const rowsLocator = this.webTableLocator;
+        const titlesArray = await this.webTableTitles.allTextContents();
+        const searchedColumnIndex = titlesArray.findIndex(title => title === searchedColumn);
+        return searchedColumnIndex;
+    }
+    async ParseRows()
+    {
+        const rowsLocator = this.webTableRowsLocator;
         const filteredRows = rowsLocator.filter({has: this.page.locator('td')});
         return filteredRows;
     };
-    //TODO - Transfer colmun name instead of index
-    async parseColumn(columnIndex)
+
+    async ParseColumnByName(columnName)
     {
-        const tableRows = await this.parseRows();
+        const columnIndex = await this.GetColumnNumber(columnName);
+        const tableRows = await this.ParseRows();
         const resultColumn = [];
         for (const row of await tableRows.all()) {
             const cellLocator = row.locator(`td:nth-child(${columnIndex+1})`);
@@ -34,17 +43,17 @@ exports.WebTablePage = class WebTablePage {
         return resultColumn;
     };
     // ASSERTIONS
-    async checkCount(expectedCount, elementsList)
+    async CheckCount(expectedCount, elementsList)
     {
         await expect(elementsList).toHaveCount(expectedCount);
     };
-    async checkElemListToBeEqual(expectedTableHeaders, listOfElems)
+    async CheckElementsListToBeEqual(expectedTableHeaders, listOfElems)
     {
         expectedTableHeaders.forEach(elem => { 
-            expect(listOfElems).toContain(elem);
+         expect(listOfElems).toContain(elem);
         });
     };
-    async checkListNotToContainElem(list,elem)
+    async CheckListNotToContainElement(list,elem)
     {
         expect(list).not.toContain(elem);
     };
@@ -54,56 +63,43 @@ exports.PaginationPage = class PaginationPage {
     /**
     * @param {import('@playwright/test').Page} page
     */
-    constructor(page, tableLocator)
+    constructor(page)
     {
         this.page=page;
-        this.paginatedTableLocator = tableLocator;
+        this.paginatedTableLocator = page.locator("#productTable");
         this.pagesNumbersList = page.locator('.pagination li');
-        /*this.paginatedTableProductRows = page.locator('tbody tr');
-        this.paginatedTablePageNumberButton = page.locator('.pagination li a');
-        this.paginatedTableIdColumn = page.locator('#productTable tbody tr td:first-child');
-        this.paginatedTablePageNumberButtonText = page.locator('.pagination li');
-        this.paginatedTableCheckboxes = page.locator('#productTable input[type="checkbox"]');
-        this.row = page.locator('#productTable td');*/
     }
-    async parseRows()
+    async ParseRows()
     {
         const rowsLocator = this.paginatedTableLocator;
         const filteredRows = await rowsLocator.locator('tr');
         return filteredRows;
     };
-    async findProduct(productName)
+    async GetProductByName(productName)
     {
         const productRows = await this.paginatedTableLocator.locator('tbody tr').allTextContents();
-        //TODO Use filter instead of loop statement
-        for (const elem in productRows)
-        {
-            if(productRows[elem].includes(productName))
-            { 
-                return elem;
-            }
-        }
-        return null;
+        const rowIndex = productRows.findIndex(row => row.includes(productName));
+        return rowIndex !== -1 ? rowIndex : null;
     };
-    async clickOnPageNumber(number)
+    async ClickOnPageNumber(number)
     {
         await this.pagesNumbersList.getByText(number).click();
     };
     
-    async findPagesTotalNumber()
+    async GetPagesTotalNumber()
     {
         const pagesTotalNumber = await this.pagesNumbersList.count();
         return pagesTotalNumber;
     };
 
-    async clickOnProductCheckbox(searchedRowIndex)
+    async ClickOnProductCheckbox(searchedRowIndex)
     {
         const searchedCheckbox = await this.paginatedTableLocator.locator('input[type="checkbox"]').nth(searchedRowIndex);
         await searchedCheckbox.check();
         return searchedCheckbox;
     };
 
-    async returnIDs()
+    async GetIDs()
     {
         const ids = await this.paginatedTableLocator.locator('tbody tr td:first-child').allTextContents();
         return ids;
@@ -113,5 +109,17 @@ exports.PaginationPage = class PaginationPage {
     async AssertCheckboxToBeChecked(checkbox)
     {
         await expect(checkbox).toBeChecked();
-    }
+    };
+    
+    async CheckProductToExist(searchedRowIndex)
+    {
+        await expect(searchedRowIndex,'Product not found').not.toBe(undefined);
+    };
+
+    async CheckElementsListToBeEqual(expectedTableHeaders, listOfElems)
+    {
+        expectedTableHeaders.forEach(elem => { 
+         expect(listOfElems).toContain(elem);
+        });
+    };
 };
